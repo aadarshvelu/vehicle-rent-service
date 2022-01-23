@@ -53,7 +53,7 @@ const { MongoClient } = require("mongodb");
     let bikeVehicleTypes = getVehicleTypeDocs(bikeModels, "bike");
 
     /* DB Pre-Initialize */
-    const client = new MongoClient("mongodb+srv://av:test@cluster0.zyihz.mongodb.net/myFirstDatabase?retryWrites=true&w=majority");
+    const client = new MongoClient(process.env.dbUrl);
     await client.connect().then(() => console.log("Connected to DB!!!"));
 
     /* DB Definition */
