@@ -26,7 +26,6 @@ const { MongoClient } = require("mongodb");
                     vehicleType: key,
                     bookedDates: [],
                     modelName: model,
-                    currentBookedUserId: '',
                     createdAt: new Date()
                 })
             })
@@ -42,7 +41,6 @@ const { MongoClient } = require("mongodb");
             return {
                 parentType: type,
                 type: key,
-                allModels: models[key],
                 availableModels: models[key],
                 createdAt: new Date()
             }

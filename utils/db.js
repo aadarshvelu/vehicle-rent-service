@@ -55,7 +55,7 @@ const getVehicleData = async (parentType) => {
     } catch (e) {
         console.log("Get Data Error", JSON.stringify(e))
         return {
-            status: 400,
+            statusCode: 400,
             message: "Invalid Payload"
         }
     }
@@ -85,7 +85,7 @@ const getModelByVehicleType = async (parentType, type) => {
     } catch (e) {
         console.log("Get Data Error", JSON.stringify(e))
         return {
-            status: 400,
+            statusCode: 400,
             message: "Invalid Payload"
         }
     }
@@ -107,25 +107,39 @@ const bookDateIfAvailable = async (request) => {
         const result = await db.collection('models').findOne({ modelName: model })
         if (result) {
             if (result.bookedDates.length === 0) {
-                return await registerDates(request);
+                return await registerDates(request, result.bookedDates);
             } else {
+                let isBooked = false;
+
                 const bookedStartDate = moment(bookedDate[0]);
                 const bookedEndDate = moment(bookedDate[1]);
-                const existingDateStart = moment(result.bookedDates[0])
-                const existingDateEnd = moment(result.bookedDates[1])
-                if (bookedStartDate.isBetween(existingDateStart, existingDateEnd, undefined, []) || bookedEndDate.isBetween(existingDateStart, existingDateEnd, undefined, [])) {
+
+                result.bookedDates.every((date) => {
+                    const existingDateStart = moment(date[0])
+                    const existingDateEnd = moment(date[1])
+
+                    if (bookedStartDate.isBetween(existingDateStart, existingDateEnd, undefined, []) || bookedEndDate.isBetween(existingDateStart, existingDateEnd, undefined, [])) {
+                        isBooked = true;
+                        return false;
+                    }    
+
+                    return true;
+                })
+
+                if (isBooked) {
                     return {
                         statusCode: 404,
                         message: "Date not available for selected model"
                     };
-                }    
-                return await registerDates(request);
+                }
+                   
+                return await registerDates(request, result.bookedDates);
             }
         }
     } catch (e) {
         console.log("Post Data Error", e)
         return {
-            status: 400,
+            statusCode: 400,
             message: "Invalid Payload"
         }
     }
@@ -141,8 +155,8 @@ const bookDateIfAvailable = async (request) => {
 *
 *    This function helps to register date on db.
 */
-const registerDates = async (request) => {
-    const { model, bookedDate, numberOfWheels, vehicleType } = request;
+const registerDates = async (request, existingDates) => {
+    const { model, bookedDate } = request;
     try {
         const userId = v4();
         const db = await connectDB();
@@ -151,12 +165,8 @@ const registerDates = async (request) => {
             userId,
          });
 
-         await db.collection('models').updateOne({ modelName: model }, { $set: { bookedDates: bookedDate, currentBookedUserId: userId } });
-         const collectionName = numberOfWheels === '2' ? "bike" : "car";
-         const result = await db.collection(collectionName).findOne({ type: vehicleType });
-         const filteredModel = await result.availableModels.filter((item) =>  { return model !== item });
-         await db.collection(collectionName).updateOne({ type: vehicleType }, { $set: { availableModels: filteredModel }});
-
+         await db.collection('models').updateOne({ modelName: model }, { $set: { bookedDates: [...existingDates, bookedDate] } });
+         
          return {
             statusCode: 200,
             message: "Successfully Booked"
@@ -164,7 +174,7 @@ const registerDates = async (request) => {
     } catch(e) {
         console.log(e)
         return {
-            status: 400,
+            statusCode: 400,
             message: "Something went wrong"
         }
     }
